@@ -1,4 +1,5 @@
 import { CmdBasicInfoIface } from './command.model';
+import { v4 } from 'uuid';
 
 interface ConnectorIface {
   GetID(): string;
@@ -26,6 +27,7 @@ interface ChildConnectorIface extends ConnectorIface {
 }
 
 interface ConnectionIface {
+  GetID(): string;
   Cancel(): void;
   Connect(): void;
   State(): boolean;
@@ -36,6 +38,7 @@ interface ConnectionIface {
 }
 
 class Connection implements ConnectionIface {
+  private uuid: string;
   private state: boolean;
   private getParentIntoLabelCB: () => string;
   private parentOnDisconnectCB: () => void;
@@ -49,6 +52,7 @@ class Connection implements ConnectionIface {
   private childInfo: CmdBasicInfoIface;
 
   constructor(parent: ParentConnectorIface, child: ChildConnectorIface) {
+    this.uuid = v4();
     this.getParentIntoLabelCB = () => parent.GetIntoLabel();
     this.parentOnDisconnectCB = () => parent.OnDisconnect();
     this.childOnConnectedCB = (
@@ -63,6 +67,10 @@ class Connection implements ConnectionIface {
     this.state = false;
     this.parentInfo = parent.GetInfo();
     this.childInfo = child.GetInfo();
+  }
+
+  GetID(): string {
+    return this.uuid;
   }
 
   Cancel() {
@@ -102,6 +110,7 @@ class Connection implements ConnectionIface {
 }
 
 class ParentConnector implements ParentConnectorIface {
+  private uuid: string;
   private connection: ConnectionIface;
   private cmdGetIntoLabelCB: () => string;
   private cmdSetIntoLabelCB: (newLabel: string) => void;
@@ -113,9 +122,14 @@ class ParentConnector implements ParentConnectorIface {
     cmdSetIntoLabelCB: (newLabel: string) => void,
     basicInfo: CmdBasicInfoIface
   ) {
+    this.uuid = v4();
     this.cmdGetIntoLabelCB = cmdGetIntoLabelCB;
     this.cmdSetIntoLabelCB = cmdSetIntoLabelCB;
     this.basicInfo = basicInfo;
+  }
+
+  GetID(): string {
+    return this.uuid;
   }
 
   OnDisconnect(): void {
@@ -182,6 +196,7 @@ class ParentConnector implements ParentConnectorIface {
 }
 
 class ChildConnector implements ChildConnectorIface {
+  private uuid: string;
   private connection: ConnectionIface;
   private onConnectedCB: (parentLabel: string) => void;
   private onDisconnectedCB: () => void;
@@ -195,10 +210,15 @@ class ChildConnector implements ChildConnectorIface {
     onSetSourcelabelCB: (parentLabel: string) => void,
     basicInfo: CmdBasicInfoIface
   ) {
+    this.uuid = v4();
     this.onConnectedCB = onConnectedCB;
     this.onDisconnectedCB = onDisconnectedCB;
     this.onSetSourcelabelCB = onSetSourcelabelCB;
     this.basicInfo = basicInfo;
+  }
+
+  GetID(): string {
+    return this.uuid;
   }
 
   OnDisconnect() {

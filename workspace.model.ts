@@ -1,5 +1,5 @@
+import { CmdIface } from './command.model';
 import { CorrelateRefCmd, CorrelateRefCmdState } from './correlateRef.model';
-import { CmdIface } from './query.model';
 import { SearchCmd, SearchCmdState } from './search.model';
 import { SelectCmd, SelectCmdState } from './select.model';
 import { ViewCmd, ViewCmdState } from './view.model';
@@ -23,11 +23,11 @@ class Workspace {
     delete this.cmdMap[ID];
   }
 
-  NewSelectCmd(state?: SelectCmdState): SelectCmd {
-    const cmd = new SelectCmd(state);
-    this.AddCmd(cmd.GetID(), cmd);
-    return cmd;
-  }
+  // NewSelectCmd(state?: SelectCmdState): SelectCmd {
+  //   const cmd = new SelectCmd(state);
+  //   this.AddCmd(cmd.GetID(), cmd);
+  //   return cmd;
+  // }
 
   NewSearchCmd(state?: SearchCmdState): SearchCmd {
     const cmd = new SearchCmd(state);
