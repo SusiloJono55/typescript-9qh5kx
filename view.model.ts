@@ -1,13 +1,13 @@
-import { Cmd, CmdIface } from './command.model';
+import { Cmd, CmdIface, CmdTypes } from './command.model';
 import {
     ChildConnector,
     ChildConnectorIface,
-    Connection,
-    ConnectionIface,
     ParentConnector,
     ParentConnectorIface,
 } from './connection.model';
 import { CmdSlots, Slot, SlotName, SlotType } from './query.model';
+
+const cmdType: CmdTypes = 'VIEW';
 
 interface ViewCmdProps {
     columns: string;
@@ -16,6 +16,7 @@ interface ViewCmdProps {
 }
 
 interface ViewCmdState {
+    node_type: CmdTypes;
     props: ViewCmdProps;
 }
 
@@ -23,24 +24,28 @@ class ViewCmd extends Cmd implements CmdIface {
     private state: ViewCmdState;
     private fromConnector: ChildConnectorIface;
     private intoConnector: ParentConnectorIface;
-    Slots: Slot[] = CmdSlots['VIEW'];
 
     constructor(state?: ViewCmdState) {
-        super();
+        super(cmdType);
 
         if (state) {
             this.state = state;
         } else {
             this.state = {
+                node_type: cmdType,
                 props: {
                     columns: '',
                     from: '',
                     into: '',
                 },
             };
-        }
+        } 
+        super.SetNewProp(this.state.props);
+
 
         this.fromConnector = new ChildConnector(
+            "INPUT1",
+            "",
             (parentLabel: string) => {
                 this.state.props.from = parentLabel;
             },
@@ -54,6 +59,8 @@ class ViewCmd extends Cmd implements CmdIface {
         );
 
         this.intoConnector = new ParentConnector(
+            "OUTPUT1",
+            "",
             () => this.state.props.into,
             (newLabel: string) => {
                 this.state.props.into = newLabel;
@@ -70,22 +77,18 @@ class ViewCmd extends Cmd implements CmdIface {
         }
     }
 
-    GetInConnector(name: SlotName, label?: SlotType): ChildConnectorIface {
+    GetInConnector(name: SlotName, label?: string): ChildConnectorIface {
         if (name === 'INPUT1') {
             return this.fromConnector;
         }
         return null;
     }
 
-    GetOutConnector(name: SlotName, label?: SlotType): ParentConnectorIface {
+    GetOutConnector(name: SlotName, label?: string): ParentConnectorIface {
         if (name === 'OUTPUT1') {
             return this.intoConnector;
         }
         return null;
-    }
-
-    GenerateProps(): any {
-        return this.state.props;
     }
 }
 

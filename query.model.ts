@@ -1,4 +1,4 @@
-type SlotName = "INPUT1" | "INPUT2" | "OUTPUT1" | "OUTPUT2"
+type SlotName = "INPUT1" | "INPUT2" | "OUTPUT1" | "OUTPUT2" | null;
 type SlotType = "IN" | "OUT"
 
 interface Slot {

@@ -1,28 +1,33 @@
 import { CmdBasicInfoIface } from './command.model';
 import { v4 } from 'uuid';
+import { Slot, SlotName } from './query.model';
 
 interface ConnectorIface {
     GetID(): string;
     OnDisconnect(): void;
     IsConnected(): boolean;
     GetInfo(): CmdBasicInfoIface;
-    GetOppositeInfo(): CmdBasicInfoIface;
+    GetOppositeInfo(): CmdBasicInfoIface | null;
     IsChecked(): boolean;
     SwitchToggle(): void;
     Disconnect(): void;
+    GetSlotName(): SlotName;
+    GetOppSlotName(): SlotName | null;
+    GetLabel(): string;
+    GetOppLabel(): string | null;
 }
 
 interface ParentConnectorIface extends ConnectorIface {
     Connect(child: ChildConnectorIface): boolean;
     SetIntoLabel(newLabel: string): void;
     GetIntoLabel(): string;
-    GetChildInfo(): CmdBasicInfoIface;
+    GetChildInfo(): CmdBasicInfoIface | null;
 }
 
 interface ChildConnectorIface extends ConnectorIface {
     OnConnected(getParentIntoLabelCB: () => string, conn: ConnectionIface): void;
     SetLabelByParent(newLabel: string): void;
-    GetParentInfo(): CmdBasicInfoIface;
+    GetParentInfo(): CmdBasicInfoIface | null;
 }
 
 interface ConnectionIface {
@@ -34,6 +39,10 @@ interface ConnectionIface {
     Disconnect(): void;
     ParentInfo(): CmdBasicInfoIface;
     ChildInfo(): CmdBasicInfoIface;
+    ParentSlotName(): SlotName;
+    ParentLabel(): string;
+    ChildSlotName(): SlotName;
+    ChildLabel(): string;
 }
 
 class Connection implements ConnectionIface {
@@ -49,6 +58,10 @@ class Connection implements ConnectionIface {
     private childOnDisconnectCB: () => void;
     private parentInfo: CmdBasicInfoIface;
     private childInfo: CmdBasicInfoIface;
+    private parentSlotName: SlotName;
+    private childSlotName: SlotName;
+    private parentLabel: string;
+    private childLabel: string;
 
     constructor(parent: ParentConnectorIface, child: ChildConnectorIface) {
         this.uuid = v4();
@@ -66,6 +79,8 @@ class Connection implements ConnectionIface {
         this.state = false;
         this.parentInfo = parent.GetInfo();
         this.childInfo = child.GetInfo();
+        this.parentSlotName = parent.GetSlotName();
+        this.childSlotName = child.GetSlotName();
     }
 
     GetID(): string {
@@ -106,6 +121,22 @@ class Connection implements ConnectionIface {
     ChildInfo(): CmdBasicInfoIface {
         return this.childInfo;
     }
+
+    ParentSlotName(): SlotName {
+        return this.parentSlotName;
+    }
+
+    ChildSlotName(): SlotName {
+        return this.childSlotName;
+    }
+
+    ParentLabel(): string {
+        return this.parentLabel;
+    }
+
+    ChildLabel(): string {
+        return this.childLabel;
+    }
 }
 
 class ParentConnector implements ParentConnectorIface {
@@ -115,8 +146,12 @@ class ParentConnector implements ParentConnectorIface {
     private cmdSetIntoLabelCB: (newLabel: string) => void;
     private basicInfo: CmdBasicInfoIface;
     private check: boolean;
+    private slotName: SlotName;
+    private label: string;
 
     constructor(
+        slotName: SlotName,
+        label: string,
         cmdGetIntoLabelCB: () => string,
         cmdSetIntoLabelCB: (newLabel: string) => void,
         basicInfo: CmdBasicInfoIface
@@ -125,6 +160,8 @@ class ParentConnector implements ParentConnectorIface {
         this.cmdGetIntoLabelCB = cmdGetIntoLabelCB;
         this.cmdSetIntoLabelCB = cmdSetIntoLabelCB;
         this.basicInfo = basicInfo;
+        this.slotName = slotName;
+        this.label = label;
     }
 
     GetID(): string {
@@ -143,7 +180,7 @@ class ParentConnector implements ParentConnectorIface {
         return this.basicInfo;
     }
 
-    GetOppositeInfo(): CmdBasicInfoIface {
+    GetOppositeInfo(): CmdBasicInfoIface | null {
         if (!this.IsConnected()) {
             return null;
         }
@@ -185,8 +222,35 @@ class ParentConnector implements ParentConnectorIface {
         return this.cmdGetIntoLabelCB();
     }
 
-    GetChildInfo(): CmdBasicInfoIface {
+    GetChildInfo(): CmdBasicInfoIface | null {
+        if (!this.connection) {
+            return null;
+        }
         return this.connection.ChildInfo();
+    }
+
+    GetSlotName(): SlotName {
+        return this.slotName;
+    }
+
+    GetOppSlotName(): SlotName | null {
+        if (!this.connection) {
+            return null;
+        }
+
+        return this.connection.ChildSlotName();
+    }
+
+    GetLabel(): string {
+        return this.label;
+    }
+
+    GetOppLabel(): string | null {
+        if (!this.connection) {
+            return null;
+        }
+
+        return this.connection.ChildLabel();
     }
 }
 
@@ -198,8 +262,12 @@ class ChildConnector implements ChildConnectorIface {
     private onSetSourcelabelCB: (parentLabel: string) => void;
     private basicInfo: CmdBasicInfoIface;
     private check: boolean;
+    private slotName: SlotName;
+    private label: string;
 
     constructor(
+        slotName: SlotName,
+        label: string,
         onConnectedCB: (parentLabel: string) => void,
         onDisconnectedCB: () => void,
         onSetSourcelabelCB: (parentLabel: string) => void,
@@ -210,6 +278,8 @@ class ChildConnector implements ChildConnectorIface {
         this.onDisconnectedCB = onDisconnectedCB;
         this.onSetSourcelabelCB = onSetSourcelabelCB;
         this.basicInfo = basicInfo;
+        this.slotName = slotName;
+        this.label = label;
     }
 
     GetID(): string {
@@ -229,7 +299,7 @@ class ChildConnector implements ChildConnectorIface {
         return this.basicInfo;
     }
 
-    GetOppositeInfo(): CmdBasicInfoIface {
+    GetOppositeInfo(): CmdBasicInfoIface | null {
         if (!this.connection) {
             return null;
         }
@@ -261,8 +331,35 @@ class ChildConnector implements ChildConnectorIface {
         }
     }
 
-    GetParentInfo(): CmdBasicInfoIface {
+    GetParentInfo(): CmdBasicInfoIface | null {
+        if (!this.connection) {
+            return null;
+        }
         return this.connection.ParentInfo();
+    }
+
+    GetSlotName(): SlotName {
+        return this.slotName;
+    }
+
+    GetOppSlotName(): SlotName | null {
+        if (!this.connection) {
+            return null;
+        }
+
+        return this.connection.ParentSlotName();
+    }
+
+    GetLabel(): string {
+        return this.label;
+    }
+
+    GetOppLabel(): string | null {
+        if (!this.connection) {
+            return null;
+        }
+
+        return this.connection.ParentLabel();
     }
 }
 

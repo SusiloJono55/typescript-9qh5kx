@@ -1,4 +1,4 @@
-import { Cmd, CmdIface } from './command.model';
+import { Cmd, CmdIface, CmdTypes } from './command.model';
 import {
     ChildConnector,
     ChildConnectorIface,
@@ -6,6 +6,8 @@ import {
     ParentConnectorIface,
 } from './connection.model';
 import { CmdSlots, Slot, SlotName, SlotType } from './query.model';
+
+const cmdType: CmdTypes = 'CORRELATE';
 
 interface CorrefSrcObj {
     table: string;
@@ -19,6 +21,7 @@ interface CorrelateRefCmdProps {
 }
 
 interface CorrelateRefCmdState {
+    node_type: CmdTypes;
     props: CorrelateRefCmdProps;
 }
 
@@ -27,15 +30,15 @@ class CorrelateRefCmd extends Cmd implements CmdIface {
     private fromConnector: ChildConnectorIface;
     private refConnector: ChildConnectorIface;
     private intoConnector: ParentConnectorIface;
-    Slots: Slot[] = CmdSlots['CORRELATE'];
 
     constructor(state?: CorrelateRefCmdState) {
-        super();
+        super(cmdType);
 
         if (state) {
             this.state = state;
         } else {
             this.state = {
+                node_type: cmdType,
                 props: {
                     src: {
                         table: '',
@@ -49,8 +52,11 @@ class CorrelateRefCmd extends Cmd implements CmdIface {
                 },
             };
         }
+        super.SetNewProp(this.state.props);
 
         this.intoConnector = new ParentConnector(
+            "OUTPUT1",
+            "",
             () => this.state.props.into,
             (newLabel: string) => {
                 this.state.props.into = newLabel;
@@ -59,6 +65,8 @@ class CorrelateRefCmd extends Cmd implements CmdIface {
         );
 
         this.fromConnector = new ChildConnector(
+            "INPUT1",
+            "",
             (parentLabel: string) => {
                 this.state.props.src.table = parentLabel;
                 this.state.props.src.cols = '';
@@ -74,6 +82,8 @@ class CorrelateRefCmd extends Cmd implements CmdIface {
         );
 
         this.refConnector = new ChildConnector(
+            "INPUT2",
+            "",
             (parentLabel: string) => {
                 this.state.props.ref.table = parentLabel;
                 this.state.props.ref.cols = '';
@@ -97,7 +107,7 @@ class CorrelateRefCmd extends Cmd implements CmdIface {
         }
     }
 
-    GetInConnector(name: SlotName, label?: SlotType): ChildConnectorIface {
+    GetInConnector(name: SlotName, label?: string): ChildConnectorIface {
         switch (name) {
             case 'INPUT1': {
                 return this.fromConnector;
@@ -109,15 +119,11 @@ class CorrelateRefCmd extends Cmd implements CmdIface {
         return null;
     }
 
-    GetOutConnector(name: SlotName, label?: SlotType): ParentConnectorIface {
+    GetOutConnector(name: SlotName, label?: string): ParentConnectorIface {
         if (name === 'OUTPUT1') {
             return this.intoConnector;
         }
         return null;
-    }
-
-    GenerateProps(): any {
-        return this.state.props;
     }
 }
 

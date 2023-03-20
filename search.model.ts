@@ -1,10 +1,12 @@
-import { Cmd, CmdIface } from './command.model';
+import { Cmd, CmdIface, CmdTypes } from './command.model';
 import {
     ChildConnectorIface,
     ParentConnector,
     ParentConnectorIface,
 } from './connection.model';
 import { CmdSlots, Slot, SlotName, SlotType } from './query.model';
+
+const cmdType: CmdTypes = 'SEARCH';
 
 interface SearchCmdProps {
     search_str?: string;
@@ -22,21 +24,22 @@ interface SearchCmdProps {
 }
 
 interface SearchCmdState {
+    node_type: CmdTypes;
     props: SearchCmdProps;
 }
 
 class SearchCmd extends Cmd implements CmdIface {
     private state: SearchCmdState;
     private outConnector: ParentConnectorIface;
-    Slots: Slot[] = CmdSlots['SEARCH'];
 
     constructor(state?: SearchCmdState) {
-        super();
+        super(cmdType);
 
         if (state) {
             this.state = state;
         } else {
             this.state = {
+                node_type: cmdType,
                 props: {
                     paths: [],
                     has_limit: false,
@@ -47,9 +50,13 @@ class SearchCmd extends Cmd implements CmdIface {
                     label: '',
                 },
             };
-        }
+        }        
+        super.SetNewProp(this.state.props);
+
 
         this.outConnector = new ParentConnector(
+            "OUTPUT1",
+            "",
             () => this.state.props.label,
             (newLabel: string) => {
                 this.state.props.label = newLabel;
@@ -66,19 +73,15 @@ class SearchCmd extends Cmd implements CmdIface {
         }
     }
 
-    GetInConnector(name: SlotName, label?: SlotType): ChildConnectorIface {
+    GetInConnector(name: SlotName, label?: string): ChildConnectorIface {
         return null;
     }
 
-    GetOutConnector(name: SlotName, label?: SlotType): ParentConnectorIface {
+    GetOutConnector(name: SlotName, label?: string): ParentConnectorIface {
         if (name === 'OUTPUT1') {
             return this.outConnector;
         }
         return null;
-    }
-
-    GenerateProps(): any {
-        return this.state.props;
     }
 }
 
