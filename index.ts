@@ -85,10 +85,17 @@ function demoWorkspace() {
 
     const wsState = workspace.GenerateState();
     console.log("Generated workspace's state :", wsState);
+    console.log(JSON.stringify(wsState));
 
     let workspace_2 = new Workspace(wsState);
     const wsState_2 = workspace_2.GenerateState();
     console.log("Generated workspace_2's state :", wsState_2);
+    console.log(JSON.stringify(wsState_2));
+
+    let workspace_3 = new Workspace();
+    workspace_3.LoadFromPayload(workspace.GetPayload());
+    console.log(JSON.stringify(workspace.GetPayload()));
+    console.log(JSON.stringify(workspace_3.GetPayload()));
 }
 
 demoWorkspace();

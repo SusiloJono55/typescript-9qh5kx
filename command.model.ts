@@ -2,7 +2,8 @@ import { v4 } from 'uuid';
 import { ChildConnectorIface, ParentConnectorIface } from './connection.model';
 import { CmdSlots, Slot, SlotName, SlotType } from './query.model';
 
-type CmdTypes = "CORRELATE" | "SEARCH" | "VIEW" | "MERGE";
+type CmdTypes = "SELECTDB" | "SELECT" | "COPY" | "CONFIG" | "CREATEINDEX" | "DROP" | "EXPLODE" | "SEARCH" | "EXTRACT" | "IMPLODE"
+    | "VIEW" | "FILTER" | "AGGREGATE" | "DEDUP" | "SORT" | "LIMIT" | "MERGE" | "CORRELATEREF" | "STORE";
 
 interface CmdBasicInfoIface {
     GetID(): string;

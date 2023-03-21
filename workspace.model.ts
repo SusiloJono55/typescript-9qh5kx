@@ -1,4 +1,5 @@
 import { CmdIface, CmdTypes } from './command.model';
+import { ChildConnectorIface, ParentConnectorIface } from './connection.model';
 import { CorrelateRefCmd, CorrelateRefCmdState } from './correlateRef.model';
 import { SlotName } from './query.model';
 import { SearchCmd, SearchCmdState } from './search.model';
@@ -11,7 +12,7 @@ const primaryCmd: { [key: string]: null } = {
 
 interface cmdState {
     uuid: string;
-    coordinate: { x: Number; y: Number };
+    coordinate: { x: Number, y: Number };
     node_type: CmdTypes;
     props: any;
 }
@@ -22,43 +23,14 @@ interface workspaceState {
 }
 
 class Workspace {
-    private cmdMap: { [key: string]: CmdIface };
+    cmdMap: { [key: string]: CmdIface };
     private primerCmd: { [key: string]: null };
 
     constructor(wsState?: workspaceState) {
         this.cmdMap = {};
         this.primerCmd = {};
         if (wsState) {
-            for (let i = 0; i < wsState.cmds.length; i++) {
-                let cmd: CmdIface;
-                switch (wsState.cmds[i].node_type) {
-                    case "SEARCH":
-                        let searchState: SearchCmdState = {
-                            node_type: wsState.cmds[i].node_type,
-                            props: wsState.cmds[i].props
-                        }
-                        cmd = new SearchCmd(searchState);
-                        break;
-                    case "CORRELATE":
-                        let corrState: CorrelateRefCmdState = {
-                            node_type: wsState.cmds[i].node_type,
-                            props: wsState.cmds[i].props
-                        }
-                        cmd = new CorrelateRefCmd(corrState);
-                        break;
-                    case "VIEW":
-                        let viewState: ViewCmdState = {
-                            node_type: wsState.cmds[i].node_type,
-                            props: wsState.cmds[i].props
-                        }
-                        cmd = new ViewCmd(viewState);
-                        break;
-                }
-
-                cmd.SetID(wsState.cmds[i].uuid);
-                cmd.SetCoordinate(wsState.cmds[i].coordinate.x, wsState.cmds[i].coordinate.y);
-                this.AddCmd(wsState.cmds[i].uuid, cmd);
-            }
+            this.loadCmdFromState(wsState.cmds);
 
             for (const id in wsState.connections) {
                 let cmd = this.cmdMap[id];
@@ -69,6 +41,97 @@ class Workspace {
                     connector.Connect(childConnector);
                 }
             }
+        }
+    }
+
+    LoadFromPayload(data: {nodes: { [key: string]: any }, model: Object[]}) {
+        this.cmdMap = {};
+        this.primerCmd = {};
+
+        let cmds: cmdState[] = [];
+        for (const id in data.nodes) {
+            const cmd: cmdState = {
+                uuid: id,
+                coordinate: { x: 0, y: 0 },
+                node_type: data.nodes[id].node_type as CmdTypes,
+                props: data.nodes[id].props
+            }
+            cmds.push(cmd);
+        }
+        this.loadCmdFromState(cmds);
+
+        const models = data.model;
+        let modelsMap = {};
+        for (let i = 0; i < models.length; i++) {
+            modelsMap[models[i]["id"]] = models[i];
+        }
+
+        for (let i = 0; i < models.length; i++) {
+            const model = models[i];
+            if ("out" in model) {
+                const node = this.cmdMap[model["id"]];
+                const isMultipleOut = node.NodeType() == "SELECT" || node.NodeType() == "COPY" || node.NodeType() == "FILTER";
+                const outArr = model["out"] as Array<string|null>;
+                for (let j = 0; j < outArr.length; j++) {
+                    if (outArr[j] === null) {
+                        continue
+                    }
+
+                    let parentConnector: ParentConnectorIface;
+                    let childConnector: ChildConnectorIface;
+                    const childNode = this.cmdMap[outArr[j]];
+                    const childModel = modelsMap[outArr[j]];
+                    const inArr = childModel["in"] as Array<string|null>;
+                    let inSlotName: SlotName = "INPUT1";
+                    if (childNode.NodeType() === "CORRELATEREF") {
+                        if (inArr[1] === model["id"]) {
+                            inSlotName = "INPUT2";
+                        }
+                    }
+                    console.log(childNode.NodeType(), inSlotName, inArr , outArr[j])
+                    childConnector = childNode.GetInConnector(inSlotName);
+
+                    let outSlotName: SlotName = "OUTPUT1";
+                    if (isMultipleOut && j == outArr.length - 1) {
+                        outSlotName = "OUTPUT2";
+                    }
+                    parentConnector = node.GetOutConnector(outSlotName); // TODO: untuk SELECT perlu didevelop lg
+                    parentConnector.Connect(childConnector);
+                }
+            }
+        }
+    }
+
+    private loadCmdFromState(cmds: cmdState[]) {
+        for (let i = 0; i < cmds.length; i++) {
+            let cmd: CmdIface;
+            switch (cmds[i].node_type) {
+                case "SEARCH":
+                    let searchState: SearchCmdState = {
+                        node_type: cmds[i].node_type,
+                        props: cmds[i].props
+                    }
+                    cmd = new SearchCmd(searchState);
+                    break;
+                case "CORRELATEREF":
+                    let corrState: CorrelateRefCmdState = {
+                        node_type: cmds[i].node_type,
+                        props: cmds[i].props
+                    }
+                    cmd = new CorrelateRefCmd(corrState);
+                    break;
+                case "VIEW":
+                    let viewState: ViewCmdState = {
+                        node_type: cmds[i].node_type,
+                        props: cmds[i].props
+                    }
+                    cmd = new ViewCmd(viewState);
+                    break;
+            }
+
+            cmd.SetID(cmds[i].uuid);
+            cmd.SetCoordinate(cmds[i].coordinate.x, cmds[i].coordinate.y);
+            this.AddCmd(cmds[i].uuid, cmd);
         }
     }
 
@@ -112,23 +175,26 @@ class Workspace {
         return cmd;
     }
 
-    GetPayload(): { nodes: any, model: any } {
+    GetPayload(): { nodes: { [key: string]: any }, model: Object[] } {
         let nodes: { [key: string]: any } = {};
         let model: Object[] = [];
+        let stateMap: {} = {};
         for (const id in this.primerCmd) {
             const node = this.cmdMap[id];
-            this.visitNode(nodes, model, node);
+            this.visitNode(nodes, model, node, stateMap);
         }
 
         return { nodes: nodes, model: model };
     }
 
-    visitNode(nodes: { [key: string]: any }, model: Object[], node: CmdIface) {
-        nodes[node.GetID()] = node.GetProps();
+    visitNode(nodes: { [key: string]: any }, model: Object[], node: CmdIface, stateMap: {}) {
+        nodes[node.GetID()] = {
+            "node_type": node.NodeType(),
+            "props": node.GetProps()
+        };
         let nodeModel = {
             "id": node.GetID()
         };
-        model.push(nodeModel);
         for (let i = 0; i < node.Slots.length; i++) {
             if (node.Slots[i].type == "IN") {
                 if (!("in" in nodeModel)) {
@@ -139,10 +205,19 @@ class Workspace {
                 if (!connector.IsConnected()) {
                     nodeModel["in"].push(null);
                 } else {
-                    nodeModel["in"].push(connector.GetParentInfo().GetID());
+                    const parentID = connector.GetParentInfo().GetID();
+                    if (!(parentID in stateMap)) {
+                        break
+                    }
+                    nodeModel["in"].push(parentID);
                 }
 
                 continue
+            }
+
+            if (!(node.GetID() in stateMap)) {
+                model.push(nodeModel);
+                stateMap[node.GetID()] = 1;
             }
 
             if (!("out" in nodeModel)) {
@@ -157,7 +232,7 @@ class Workspace {
 
             nodeModel["out"].push(connector.GetChildInfo().GetID());
             const childNode = this.cmdMap[connector.GetChildInfo().GetID()];
-            this.visitNode(nodes, model, childNode);
+            this.visitNode(nodes, model, childNode, stateMap);
         }
     }
 

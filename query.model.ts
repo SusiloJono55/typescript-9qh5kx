@@ -15,7 +15,7 @@ const CmdSlots: {[key: string]: Slot[]} = {
         {name: "INPUT1", IsMulti: false, type: 'IN'},
         {name: "OUTPUT1", IsMulti: false, type: 'OUT'}
     ],
-    "CORRELATE": [
+    "CORRELATEREF": [
         {name: "INPUT1", IsMulti: false, type: 'IN'},
         {name: "INPUT2", IsMulti: false, type: 'IN'},
         {name: "OUTPUT1", IsMulti: false, type: 'OUT'}

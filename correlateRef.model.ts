@@ -7,7 +7,7 @@ import {
 } from './connection.model';
 import { CmdSlots, Slot, SlotName, SlotType } from './query.model';
 
-const cmdType: CmdTypes = 'CORRELATE';
+const cmdType: CmdTypes = "CORRELATEREF";
 
 interface CorrefSrcObj {
     table: string;
